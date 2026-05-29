@@ -54,6 +54,8 @@ Clone <your-repo-url>, run `uv sync` then `uv run sync`, and register the
 
 ## What you get
 
+__Pending screenshots__
+
 ![Semantic search over the docs](screenshots/search.png)
 ![Verified source links in answers](screenshots/links.png)
 ![Freshness timestamp on every answer](screenshots/timestamp.png)
