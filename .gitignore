@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# uv / virtualenv
+.venv/
+
+# Synced docs + derived artifacts (CC BY-NC-ND — never commit; see spec-first-tdd/00-use-case.md)
+data/
