@@ -6,7 +6,9 @@ can't be made, return ``None`` (the caller omits the link rather than risk a wro
 
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 
 SITEMAP_INDEX = "https://success.outsystems.com/sitemap.xml"
 
@@ -74,6 +76,28 @@ def fetch_sitemap(get=None, url=SITEMAP_INDEX):
                 pages.setdefault(page, None)
         return list(pages)
     return locs
+
+
+def fetch_sitemap_with_cache(cache_path, *, get=None, url=SITEMAP_INDEX, warn=None):
+    """Fetch sitemap URLs, persisting a local cache and falling back to it on failure.
+
+    On success the URL list is written to ``cache_path`` as JSON. On failure the cache
+    is loaded if it exists (with an optional ``warn(message)`` callback); otherwise the
+    original exception is re-raised.
+    """
+    cache_path = Path(cache_path)
+    try:
+        urls = fetch_sitemap(get=get, url=url)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps(urls), encoding="utf-8")
+        return urls
+    except Exception as exc:
+        if cache_path.exists():
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            if warn:
+                warn(f"sitemap fetch failed ({exc}); using cached copy ({len(cached)} URLs).")
+            return cached
+        raise
 
 
 def doc_title(content):

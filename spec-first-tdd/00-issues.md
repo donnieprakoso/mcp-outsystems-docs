@@ -39,61 +39,59 @@ Copy and paste this template when adding a new issue:
 
 ---
 
-## Issue Resolution Workflow
+## 1. `sync` fails — fastembed ONNX model file missing or corrupt
+**Description**: Running `uv run sync` crashes with `onnxruntime.capi.onnxruntime_pybind11_state.NoSuchFile`. fastembed emits a warning that local file sizes do not match the metadata, then attempts to load `model_optimized.onnx` from the local snapshot cache (`/var/folders/.../fastembed_cache/models--qdrant--bge-small-en-v1.5-onnx-q/snapshots/.../model_optimized.onnx`) — but the file does not exist. The crash occurs in `osmcp/embed.py` at `TextEmbedding(model_name)` inside `build_index`.
 
-When you add an issue, the AI will:
+Full traceback (condensed):
+```
+WARNING  | fastembed.common.model_management - Local file sizes do not match the metadata.
+...
+osmcp/sync.py:79   sync_sources → build_index
+osmcp/index.py:36  build_index  → embed(texts[...])
+osmcp/embed.py:26  embed        → TextEmbedding(model_name)   ← raises here
+onnxruntime.capi.onnxruntime_pybind11_state.NoSuchFile:
+  Load model .../model_optimized.onnx failed. File doesn't exist
+```
 
-1. **Triage**: Determine if this is a separate issue, should be merged with existing issue, or requires a new use case
-2. **Red Phase**: Create a failing test that reproduces the issue
-3. **Green Phase**: Implement minimal fix to make test pass
-4. **Refactor Phase**: Clean up code if needed
-5. **Update Documentation**: Mark issue as resolved with details
+**Status**: In Progress
+**Timestamp**: 2026-06-24 09:54:32
+**Started Resolution**: 2026-06-24
+**Related Use Case**: Use Case #6 (Build the local vector index), Use Case #7 (Orchestrate the sync pipeline)
 
----
-
-## Example Issues (for reference only - delete these when you start)
-
-### 1. API returns 500 error on invalid input
-**Description**: When user submits form with empty email field, API returns 500 instead of 400 with validation error
-**Status**: Resolved
-**Related Use Case**: Use Case #3 (Form validation)
-**Timestamp**: 2026-03-05 10:00:00
-**Started Resolution**: 2026-03-05 10:05:00
-**Resolved**: 2026-03-05 10:30:00
-
-**Root Cause**: 
-- Missing null check in email validation function
-- Exception thrown instead of returning validation error
-
-**Resolution**:
-- Added null check before email validation
-- Return 400 status with error message for empty fields
-- Test coverage: `test_form_validation_empty_email`
-
----
-
-### 2. Database connection timeout in production
-**Description**: Application crashes after 30 seconds with "Connection timeout" error when connecting to database
-**Status**: Resolved
-**Related Use Case**: Use Case #1 (Database initialization)
-**Timestamp**: 2026-03-05 11:00:00
-**Started Resolution**: 2026-03-05 11:10:00
-**Resolved**: 2026-03-05 11:45:00
+**Triage**: Separate issue — not a duplicate of any existing issue. Root cause is a corrupt/incomplete fastembed model cache, not a logic bug in the index or sync code. Resolving independently.
 
 **Root Cause**:
-- Default connection timeout was 30 seconds
-- Production database requires longer timeout due to network latency
+- fastembed detected a file-size mismatch between the local cache and Hugging Face metadata but did not re-download the model
+- The snapshot directory exists but `model_optimized.onnx` was never fully written (partial download)
+- `TextEmbedding.__init__` → `load_onnx_model` → `ort.InferenceSession` fails with `NoSuchFile`
 
-**Resolution**:
-- Increased connection timeout to 60 seconds
-- Added retry logic with exponential backoff
-- Test coverage: `test_database_connection_timeout`, `test_database_connection_retry`
+**Resolution**: TBD — following Red → Green → Refactor cycle (Issue #1 is user-resolved by clearing the fastembed cache)
 
 ---
 
-## Tips
+## 2. Sitemap download is unreliable — no local cache fallback
+**Description**: `uv run sync` re-fetches the sitemap from the live site on every run. The download sometimes fails (network issues, transient errors). When it fails, the run continues but URL resolution is silently degraded — all docs get no canonical URL. A caching mechanism is needed so that a successful download is persisted locally and used as a fallback on subsequent failures. Current output when working: `Loaded 4315 URLs from the sitemap for link resolution.`
 
-- **Be specific**: Include error messages, stack traces, or steps to reproduce
-- **One issue at a time**: AI resolves issues sequentially, not in parallel
-- **Link to use cases**: If issue relates to existing use case, mention it in description
-- **Production bugs only**: Use this for bugs found during testing or production, not for new features (use `00-use-case.md` for features)
+**Status**: In Progress
+**Timestamp**: 2026-06-24
+**Started Resolution**: 2026-06-24
+**Related Use Case**: Use Case #13 (Resolve canonical doc URLs from the sitemap)
+
+**Triage**: Separate issue from Issue #1. Fix is contained to `osmcp/sitemap.py` + `osmcp/sync.py` — write a successful fetch to `data/sitemap_cache.xml`, fall back to it when the live fetch fails. No new use case needed.
+
+**Root Cause**:
+- `fetch_sitemap` in `osmcp/sitemap.py` fetches live on every call with no local persistence
+- Transient network failures cause `sync` to run with zero resolved URLs (silent degradation)
+- No retry or fallback mechanism exists
+
+**Resolution**:
+- Added `fetch_sitemap_with_cache(cache_path, *, get, url, warn)` to `osmcp/sitemap.py`
+- On success: persists the flat URL list as JSON to `data/sitemap_cache.json`
+- On failure with cache present: loads cached URLs and calls `warn(message)` with count
+- On failure with no cache: re-raises so `main()` can print its existing warning
+- `osmcp/sync.py` `main()` now calls `fetch_sitemap_with_cache` with `data/sitemap_cache.json` and `warn=print`
+- Test coverage: `test_fetch_sitemap_with_cache_saves_on_success`, `test_fetch_sitemap_with_cache_falls_back_to_cache_on_fetch_failure`, `test_fetch_sitemap_with_cache_warns_when_using_cache`, `test_fetch_sitemap_with_cache_raises_when_no_cache_and_fetch_fails`
+
+**Status**: Resolved
+**Resolved**: 2026-06-24
+**Test Coverage**: 50 tests total (4 new tests added for this issue)

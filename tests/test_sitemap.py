@@ -1,6 +1,10 @@
 """Tests for Use Case #13: resolve canonical doc URLs from the sitemap."""
 
-from osmcp.sitemap import doc_title, fetch_sitemap, parse_sitemap_urls, resolve_url
+import json
+
+import pytest
+
+from osmcp.sitemap import doc_title, fetch_sitemap, fetch_sitemap_with_cache, parse_sitemap_urls, resolve_url
 
 ODC = "https://success.outsystems.com/documentation/outsystems_developer_cloud"
 O11 = "https://success.outsystems.com/documentation/11"
@@ -60,3 +64,48 @@ def test_fetch_sitemap_follows_index_into_sub_sitemaps():
 def test_doc_title_reads_first_h1():
     assert doc_title("# Build a basic Web app\n\nbody") == "Build a basic Web app"
     assert doc_title("no heading here") is None
+
+
+# --- Issue #2: sitemap cache ---
+
+_XML = "<urlset><url><loc>https://x/a/</loc></url></urlset>"
+
+
+def test_fetch_sitemap_with_cache_saves_on_success(tmp_path):
+    cache = tmp_path / "sitemap_cache.json"
+    urls = fetch_sitemap_with_cache(cache, get=lambda u: _XML)
+    assert urls == ["https://x/a/"]
+    assert json.loads(cache.read_text(encoding="utf-8")) == ["https://x/a/"]
+
+
+def test_fetch_sitemap_with_cache_falls_back_to_cache_on_fetch_failure(tmp_path):
+    cache = tmp_path / "sitemap_cache.json"
+    cache.write_text(json.dumps(["https://x/cached/"]), encoding="utf-8")
+
+    def failing_get(u):
+        raise ConnectionError("network down")
+
+    urls = fetch_sitemap_with_cache(cache, get=failing_get)
+    assert urls == ["https://x/cached/"]
+
+
+def test_fetch_sitemap_with_cache_warns_when_using_cache(tmp_path):
+    cache = tmp_path / "sitemap_cache.json"
+    cache.write_text(json.dumps(["https://x/cached/"]), encoding="utf-8")
+
+    def failing_get(u):
+        raise ConnectionError("down")
+
+    warnings = []
+    fetch_sitemap_with_cache(cache, get=failing_get, warn=warnings.append)
+    assert warnings and any("cache" in w.lower() for w in warnings)
+
+
+def test_fetch_sitemap_with_cache_raises_when_no_cache_and_fetch_fails(tmp_path):
+    cache = tmp_path / "sitemap_cache.json"
+
+    def failing_get(u):
+        raise ConnectionError("down")
+
+    with pytest.raises(ConnectionError):
+        fetch_sitemap_with_cache(cache, get=failing_get)

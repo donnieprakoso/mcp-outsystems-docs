@@ -14,7 +14,7 @@ from osmcp.fetch import DocSource, fetch_source
 from osmcp.index import build_index, save_index
 from osmcp.llms_full import generate_llms_full_txt
 from osmcp.llms_txt import combine_llms_txt, generate_llms_txt
-from osmcp.sitemap import doc_title, fetch_sitemap, resolve_url
+from osmcp.sitemap import doc_title, fetch_sitemap_with_cache, resolve_url
 from osmcp.toc import parse_section_titles, parse_toc
 
 COMBINED_TITLE = "OutSystems Documentation"
@@ -160,8 +160,9 @@ def main(argv=None) -> SyncReport:
 
     sitemap_urls = None
     if not args.no_links:
+        cache_path = Path(args.data_dir) / "sitemap_cache.json"
         try:
-            sitemap_urls = fetch_sitemap()
+            sitemap_urls = fetch_sitemap_with_cache(cache_path, warn=print)
             print(f"Loaded {len(sitemap_urls)} URLs from the sitemap for link resolution.")
         except Exception as exc:  # noqa: BLE001 - links are optional; never fail the sync
             print(f"Warning: could not fetch sitemap ({exc}); proceeding without links.")
