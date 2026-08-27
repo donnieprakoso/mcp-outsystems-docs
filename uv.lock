@@ -774,6 +774,7 @@ dependencies = [
     { name = "fastembed" },
     { name = "mcp", extra = ["cli"] },
     { name = "numpy" },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
 ]
 
@@ -787,6 +788,7 @@ requires-dist = [
     { name = "fastembed", specifier = ">=0.8.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.27.1" },
     { name = "numpy", specifier = ">=2.4.6" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
 

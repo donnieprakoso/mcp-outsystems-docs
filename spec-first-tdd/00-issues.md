@@ -53,19 +53,28 @@ onnxruntime.capi.onnxruntime_pybind11_state.NoSuchFile:
   Load model .../model_optimized.onnx failed. File doesn't exist
 ```
 
-**Status**: In Progress
+**Status**: Resolved
 **Timestamp**: 2026-06-24 09:54:32
 **Started Resolution**: 2026-06-24
+**Resolved**: 2026-07-21
 **Related Use Case**: Use Case #6 (Build the local vector index), Use Case #7 (Orchestrate the sync pipeline)
 
-**Triage**: Separate issue — not a duplicate of any existing issue. Root cause is a corrupt/incomplete fastembed model cache, not a logic bug in the index or sync code. Resolving independently.
+**Triage**: Separate issue — not a duplicate of any existing issue. Root cause is a corrupt/incomplete fastembed model cache, not a logic bug in the index or sync code. Resolved with automatic cache recovery.
 
 **Root Cause**:
 - fastembed detected a file-size mismatch between the local cache and Hugging Face metadata but did not re-download the model
 - The snapshot directory exists but `model_optimized.onnx` was never fully written (partial download)
 - `TextEmbedding.__init__` → `load_onnx_model` → `ort.InferenceSession` fails with `NoSuchFile`
 
-**Resolution**: TBD — following Red → Green → Refactor cycle (Issue #1 is user-resolved by clearing the fastembed cache)
+**Resolution**:
+- Added cache recovery logic to `osmcp/embed.py`: when `TextEmbedding` raises `NoSuchFile` on first load, catch it, clear the `~/.cache/huggingface/hub` directory, and retry
+- The retry forces a fresh download of the model from Hugging Face (now complete)
+- On second failure (e.g., actual network issue), the original exception is raised so the user sees the real error
+- Recovery happens transparently during `uv run sync` — no manual cache clearing needed
+- Test coverage: `test_fastembed_handles_corrupt_cache` (cache cleared, retry succeeds), `test_fastembed_retry_still_fails` (unrecoverable errors still raise)
+- Integration: `fastembed_embedder()` in `osmcp/embed.py` is used by `build_index()` in `osmcp/index.py`, which is called from `sync_sources()` in `osmcp/sync.py`
+
+**Test Coverage**: 52 tests total (2 new tests added for this issue)
 
 ---
 
@@ -95,3 +104,14 @@ onnxruntime.capi.onnxruntime_pybind11_state.NoSuchFile:
 **Status**: Resolved
 **Resolved**: 2026-06-24
 **Test Coverage**: 50 tests total (4 new tests added for this issue)
+
+---
+
+## 3. HuggingFace Hub download rate limit warning
+**Description**: Running `uv run sync` prints warning: `You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.` This occurs when fastembed downloads the BGE embedding model from Hugging Face. Rate limits are low for unauthenticated requests, causing slowdowns. Solution: Make `HF_TOKEN` configurable via `.env` so users can optionally set their Hugging Face API token to avoid rate limits.
+
+**Status**: Backlog
+**Timestamp**: 2026-07-21
+**Related Use Case**: Use Case #6 (Build the local vector index), Use Case #7 (Orchestrate the sync pipeline)
+
+**Triage**: Enhancement — not blocking, but improves performance for users with rate limit issues. Solution: Add optional `HF_TOKEN` to `.env.example` and document that users can obtain a token from https://huggingface.co/settings/tokens.

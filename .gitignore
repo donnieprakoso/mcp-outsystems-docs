@@ -8,3 +8,18 @@ __pycache__/
 
 # Synced docs + derived artifacts (CC BY-NC-ND — never commit; see spec-first-tdd/00-use-case.md)
 data/
+
+# macOS / editor junk
+.DS_Store
+
+# Local Claude Code settings
+.claude/
+
+# Demo recordings — review for on-screen PII before committing any of these
+demo/
+
+# Environment configuration
+.env
+
+# Temporary files and caches
+temp/
