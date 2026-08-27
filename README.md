@@ -6,22 +6,36 @@ A local [MCP](https://modelcontextprotocol.io) server that gives your AI agent *
 
 ## Get started
 
-Prerequisites: [`uv`](https://docs.astral.sh/uv/) and Python 3.11+.
+Prerequisites: [`uv`](https://docs.astral.sh/uv/), Python 3.11+, and [Claude Code](https://claude.ai/code).
 
 ```bash
 git clone <your-repo-url> outsystems-documentation-mcp
 cd outsystems-documentation-mcp
 uv sync
+uv run sync                 # Build the local docs index
 ```
+
+The first sync downloads a ~100 MB embedding model and builds a local vector index in `data/` (offline from then on). Re-run anytime to refresh the docs.
+
+## Load SKILLS in Claude Code
+
+The `SKILLS/` folder contains Claude Code skills for OutSystems app design workflows:
+
+```bash
+# Add the outsystems-mentor-brd skill to Claude Code
+claude skill add ./SKILLS/outsystems-mentor-brd
+```
+
+**Available skills:**
+- **`outsystems-mentor-brd`** — Creates Business Requirements Documents (BRDs) for Mentor App Generator. Use when: you're preparing an app design for Mentor upload, or need to structure requirements around Mentor capabilities.
 
 ## Sync the docs
 
 ```bash
 uv run sync                 # ODC + O11 (default)
-uv run sync --source odc    # one platform
+uv run sync --source odc    # one platform only
+uv run sync --no-links      # skip URL resolution (faster, local URLs only)
 ```
-
-This pulls the latest docs and builds a local `data/` index (the first run downloads a ~100 MB embedding model, then it's offline). Re-run anytime to refresh.
 
 ## Add it to your agent
 
