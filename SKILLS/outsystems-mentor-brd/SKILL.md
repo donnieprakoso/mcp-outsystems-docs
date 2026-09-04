@@ -44,12 +44,13 @@ After 5–7 key questions, pause and summarize: *"Based on what you've told me, 
 ### Step 2: Search Mentor Docs & Best Practices
 
 Search the OutSystems documentation MCP (`outsystems-docs`) for:
+- The current Mentor requirement-document structure, data types, UI pattern vocabulary, and dashboard capabilities — run this **every session**, even though `./Mentor-Requirement-Doc-Standards.md` caches a snapshot of it, because Mentor Web ships new capabilities frequently and the cache can drift from what's live
 - Mentor App Generator capabilities and limitations (ODC)
 - Common app architecture patterns in ODC
 - Best practices for app decomposition and modularity
 - Integration patterns and connectors
 
-Run searches in parallel. See `./system-prompt.md` for specific queries.
+Run searches in parallel. Compare `last_updated()` against the date noted in `./Mentor-Requirement-Doc-Standards.md`; if MCP is newer, pull the full docs and use them over the cached file. See `./system-prompt.md` for specific queries.
 
 ### Step 3: Analyze for Single vs. Multi-App
 
@@ -62,9 +63,12 @@ If multi-app is detected, generate a proposed app breakdown and present it to th
 
 ### Step 4: Generate BRD(s)
 
+Before drafting, open the `./resources/` sample closest to the app's domain and pattern-match your draft against it directly (section headers, entity block formatting, role/permission phrasing) — it's OutSystems' own official example of what Mentor accepts, not just background reading. See `./system-prompt.md` Part 3.5.
+
 **Single app:**
-- Generate one BRD using the template in `./system-prompt.md`
-- Filename: `BRD-[AppName]-[Date].md`
+- Generate **two files** using the templates in `./system-prompt.md`:
+  - `BRD-[AppName]-[Date].md` — Mentor-native structure only, ready for direct upload to Mentor App Generator
+  - `BRD-[AppName]-Context-[Date].md` — stakeholder-facing background (executive summary, non-functional requirements, risks, KPIs); never uploaded to Mentor
 
 **Multiple apps:**
 - Generate parent architecture document: `00-BRD-Architecture-[ProjectName]-[Date].md`
@@ -84,42 +88,42 @@ Save all files to the current working directory. Present them to the user with a
 
 ## Output Format
 
-### BRD Structure (all files)
+### The Mentor-Upload File (per app — this is what goes into Mentor App Generator)
 
-Every BRD follows this structure (see `./system-prompt.md` for detailed template):
+Follows Mentor's own native document structure, not a generic BRD shape — see `./Mentor-Requirement-Doc-Standards.md` for the full vocabulary (canonical data types, entity syntax, role/permission levels, UI pattern keywords, dashboard chart/aggregation vocabulary) and `./system-prompt.md` for the detailed template:
 
 ```
-# Business Requirements Document: [App Name]
+# [App Name] — Requirement Document
 
 > **For:** Mentor App Generator (ODC)
 > **Generated:** [Date]
 > **Research basis:** OutSystems Mentor documentation (synced [date from MCP])
 
-## Executive Summary
-[1–2 paragraphs: what problem this app solves, for whom, why it matters]
+## App Overview
+[1–2 paragraphs: purpose, key users, why it matters]
 
-## App Scope & Boundaries
-[What this app does, what it explicitly does NOT do]
-[If part of a multi-app system, reference parent architecture doc]
+## General App Settings
+[Optional: theme, dark mode, primary color]
 
-## Functional Requirements
-[Key workflows, user interactions, features]
+## Data Model
+[Entities as lists, not tables — exact "Entity: X / stored locally.../ Attributes include: - Name: DataType, description" syntax]
+[Static entities with Purpose + Records]
 
-## Non-Functional Requirements
-[Performance, scale, security, compliance, integration constraints]
+## Roles and Permissions
+[Per role: entity → View/Edit/No Access, with row-level scoping named explicitly]
 
-## Data & Integration
-[Key entities, external systems, APIs, data flows]
+## Main Features and Screens
+[Screens with recognized UI pattern keywords; dashboard specs with real chart types + aggregations]
 
-## Acceptance Criteria
-[How the user will know this app is successful]
-
-## Dependencies & Risks
-[Other apps, external systems, technical risks, mitigation]
-
-## Success Metrics
-[KPIs, business outcomes, launch readiness criteria]
+## External Integrations
+[Optional: named Data Fabric connections, with the "must exist in ODC before generation" prerequisite flagged]
 ```
+
+Written entirely as lists, not tables — Mentor parses structured lists far more reliably, and this is explicit official guidance.
+
+### The Context Companion File (per app — NOT uploaded to Mentor)
+
+Holds everything a generic BRD would have but Mentor doesn't need: Executive Summary, Non-Functional Requirements, Acceptance Criteria, Dependencies & Risks (tables are fine here), Success Metrics & KPIs. Given to stakeholders for sign-off; kept separate so the Mentor-upload file stays lean and parseable.
 
 ### Multi-App Architecture Document
 
@@ -155,13 +159,14 @@ If multiple apps are identified, the parent document (`00-BRD-Architecture-...md
 ## Output Standards
 
 - **Tone:** Business-focused, not technical jargon (but specific about Mentor/ODC capabilities)
-- **Grounding:** Every BRD section is informed by actual Mentor capabilities found via MCP research, not generic requirements templates
+- **Grounding:** Every BRD section is informed by actual Mentor capabilities found via MCP research, not generic requirements templates or a stale cached snapshot — re-query `outsystems-docs` every session (see `./system-prompt.md` Part 2)
 - **Length:** 
-  - Single app BRD: 800–1200 words
+  - Single app BRD (Mentor-upload file): 400–700 words
+  - Single app context companion: 400–800 words
   - Multi-app architecture doc: 500–700 words
-  - Individual app BRDs in multi-app: 600–1000 words each
-- **Mentor readiness:** All output is formatted for direct upload to Mentor App Generator
-- **Freshness:** Every BRD includes the date of the Mentor documentation research (from MCP `last_updated()`)
+  - Individual app BRDs in multi-app: 400–700 words each
+- **Mentor readiness:** The Mentor-upload file follows Mentor's own native document structure (`./Mentor-Requirement-Doc-Standards.md`) — canonical data types, list-based entity/role/screen syntax, no tables, no PII, no ambiguous language — and is formatted for direct upload
+- **Freshness:** Every file includes the date of the Mentor documentation research (from MCP `last_updated()`); flag to the user if that date is materially behind what the live docs show
 - **No assumptions:** If MCP search returns nothing on a topic, say so rather than inventing guidance
 
 ---
@@ -174,6 +179,9 @@ Do NOT:
 - Use generic BRD templates that don't reflect Mentor's strengths
 - Skip the interview — assume you know what the user needs
 - Name apps arbitrarily — use clear, domain-driven names (e.g., `PaymentProcessor`, not `App1`)
+- Put stakeholder-narrative content (executive summary, risk register, KPI tables, acceptance-criteria checklists) into the Mentor-upload file — that belongs in the `-Context-` companion file
+- Use markdown tables, invented data types, PII, implementation code, or ambiguous language ("user-friendly", "intuitive") in the Mentor-upload file
+- Trust `./Mentor-Requirement-Doc-Standards.md` as the final word — always re-verify against live MCP research first
 
 ---
 

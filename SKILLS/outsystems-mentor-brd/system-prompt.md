@@ -76,9 +76,24 @@ Before searching, verify the OutSystems documentation MCP is connected:
 - Tools: `search_docs(query, k, source)`, `get_doc(source, path)`, `last_updated()`
 - If unavailable, tell the user: "The OutSystems docs MCP isn't connected. Please check your MCP settings and try again."
 
+### This Skill Enriches Every Run With Live MCP Research — Not Just Cached Knowledge
+
+`./Mentor-Requirement-Doc-Standards.md` in this skill folder is a cached snapshot of Mentor's document structure, data types, UI pattern vocabulary, and dashboard capabilities. **Treat it as a starting point, not the source of truth.** Mentor Web ships new capabilities frequently, and the cached file can drift from what's actually live (confirmed drift observed: MCP `last_updated()` reported a sync date ~3 weeks behind the live docs site on 2026-09-04).
+
+Every BRD generation run must:
+1. Run the "Requirement Document Structure & Capabilities" queries below via `search_docs`, even if `Mentor-Requirement-Doc-Standards.md` looks sufficient.
+2. Call `last_updated()` and compare it against the "Last verified against MCP" date in `Mentor-Requirement-Doc-Standards.md`. If MCP is newer, pull the full docs with `get_doc()` for anything that looks like it changed (new UI patterns, new chart types, changed limits) and use that over the cached file.
+3. If a fetched doc contradicts the cached file, use the fetched doc for this BRD and flag the discrepancy to the user so the cached file can be updated later.
+
 ### Research Queries (Run in Parallel)
 
 Run all of these searches scoped to `odc` (ODC only). Use `k=5` for each.
+
+**Requirement Document Structure & Capabilities (NEW — always run, every session):**
+- `"Use requirement documents Mentor Web"`
+- `"Mentor Web capabilities and patterns"`
+- `"Prompts for Mentor Web UI patterns dashboard"`
+- `"Mentor Web data model entity attributes data types"`
 
 **Core Mentor Capabilities:**
 - `"Mentor App Generator capabilities ODC"`
@@ -177,227 +192,204 @@ Refine based on feedback before generating BRDs.
 
 ---
 
+## Part 3.5: Mentor-Native Document Standards (NEW)
+
+Before drafting any BRD, load `./Mentor-Requirement-Doc-Standards.md`. It's the canonical reference for what actually gets **uploaded to Mentor** — as distinct from planning/stakeholder material. Key rules it contains, summarized:
+
+### Also: Open a Matching Sample From `./resources/` — Don't Just Read the Rules
+
+`./resources/` holds OutSystems' own official sample requirement documents (`employee-onboarding-requirements.md`, `order-management-system-requirements.md`, `it-service-management-requirements.md`). They are ground truth, not just background reading. Before drafting the Mentor-upload file:
+
+1. **Open the sample closest to the app's domain** (workflow/approval app → onboarding sample; catalog/ordering app → order management sample; ticketing/request app → ITSM sample). If none is close, open any one — the syntax is what matters, not the domain.
+2. **Pattern-match your draft against it directly** — section headers, entity block formatting, static entity phrasing, role/permission phrasing, screen/dashboard phrasing. If your draft's structure diverges from the sample's, that's a signal you've drifted from the abstracted rules in `Mentor-Requirement-Doc-Standards.md` — go with what the sample actually does.
+3. **Do this again at Part 5** (Quality Checks) as an explicit verification step, not just once while drafting.
+
+This closes the gap between "I know the rules" and "I checked the output actually looks like what Mentor accepts."
+
+- **Two documents, not one.** The file that gets uploaded to Mentor (`BRD-[AppName]-[Date].md`) contains ONLY the Mentor-native sections: App Overview, General App Settings, Data Model, Static Entities, Roles & Permissions, Main Features & Screens, External Integrations. Executive summaries, non-functional-requirement prose, acceptance-criteria checklists, risk registers, and KPI tables go in a separate, clearly-labeled companion file (`BRD-[AppName]-Context-[Date].md`) that is **not** meant for Mentor upload.
+- **Lists, not tables**, inside the Mentor-upload file. This is explicit official guidance ("Avoid complex tables — use clear lists and text instead"), and it's how OutSystems' own sample docs (see `./resources/`) are written. Tables are fine in the companion context file, which humans read and Mentor never sees.
+- **Canonical data types only:** `Identifier`, `Text`, `Boolean`, `DateTime`/`Date`, `Currency`, `Integer`, `Email`, `Phone Number`, `User Identifier`.
+- **Canonical entity syntax:** `Entity: X` → `This entity is stored locally.` (or `This entity's data is sourced from the "[Name]" [System] connection.`) → `Attributes include:` → bulleted `- AttributeName: DataType, description`. See `Mentor-Requirement-Doc-Standards.md` §3 for the full pattern.
+- **Roles use View / Edit / No Access** per entity, with row-level scoping named explicitly (e.g., "own records only, based on the CreatedBy attribute"). "Full Access" is shorthand for Edit-on-everything, not a fourth tier.
+- **Screens use recognized pattern keywords** (table, card list, gallery, master detail, list with popup, card list w/ accordion or sidebar, list with map, dashboard) with their attribute-count constraints respected.
+- **Dashboards use the real vocabulary:** chart types (Bar, Column, Line, Pie, Donut, Area), aggregation functions (Count, Sum, Average, Minimum, Maximum), and — when scope matters — an explicit exclusion line ("Do not add anything else besides these charts").
+- **External entities name their Data Fabric connection explicitly**, and the skill must flag to the user that the connection has to already exist in ODC before generation — Mentor can reference a connection, not create one.
+- **No PII, no implementation code, no screenshots, no ambiguous language** anywhere in the Mentor-upload file.
+
+Apply these rules to every template in Part 4 below.
+
+---
+
 ## Part 4: BRD Template & Content Guidelines
 
-### Single-App BRD Template
+### Single-App BRD: Two Files, Not One
 
-```markdown
-# Business Requirements Document: [App Name]
+Per Part 3.5, generate **two files** for a single app:
+
+1. **`BRD-[AppName]-[Date].md`** — the Mentor-upload file. Native structure only, lists not tables, no PII/jargon. This is what goes into Mentor App Generator.
+2. **`BRD-[AppName]-Context-[Date].md`** — the companion file for stakeholders. Executive summary, non-functional requirements, acceptance criteria, risks, KPIs. Never uploaded to Mentor; tables are fine here.
+
+#### File 1 — Mentor-Upload Template (native structure)
+
+~~~markdown
+# [App Name] — Requirement Document
 
 > **For:** Mentor App Generator (ODC)
 > **Generated:** [Today's date]
 > **Research basis:** OutSystems Mentor documentation (last synced [date from MCP])
 
+## App Overview
+
+[1–2 paragraphs: purpose, high-level goal, key users, why this problem matters now.]
+
+Example:
+> "The PaymentProcessor app automates payment authorization workflows for high-volume transaction processing. Finance teams currently spend significant time on manual payment reviews and exception handling. This app routes payments to the right approver automatically, checks compliance rules, and escalates exceptions to a human reviewer when needed."
+
+## General App Settings
+
+[Optional. Include only if the user specified a preference.]
+
+- Use the "[ThemeName]" theme available in the ODC tenant.
+- [Use a dark theme. / Use [color] as the primary color.]
+- [Localization/accessibility notes, if any.]
+
+## Data Model
+
+### Entities
+
+[One block per entity, in the canonical syntax. Every attribute uses one of the 9 canonical data types — see Mentor-Requirement-Doc-Standards.md §3.]
+
+```
+Entity: PaymentRequest
+This entity is stored locally.
+Attributes include:
+- Id: An Identifier that serves as the Primary Key
+- Amount: Currency, the requested payment amount
+- Vendor: Text, the vendor or payee name
+- RequesterId: A User Identifier for the employee who submitted the request
+- SubmittedDate: DateTime, when the request was created
+- CategoryId: An Identifier that is a Foreign Key to the PaymentCategory static entity
+- StatusId: An Identifier that is a Foreign Key to the ApprovalStatus static entity
+
+Entity: ApprovalDecision
+This entity is stored locally.
+Attributes include:
+- Id: An Identifier that serves as the Primary Key
+- PaymentRequestId: An Identifier that is a Foreign Key to the PaymentRequest entity
+- ApproverId: A User Identifier for the person who made the decision
+- Decision: Boolean, approved (true) or rejected (false)
+- Reason: Text, justification for the decision
+- DecidedDate: DateTime, when the decision was made
+
+Entity Relationships:
+- A PaymentRequest can have many ApprovalDecisions (One-to-Many)
+```
+
+[If any entity's data comes from outside ODC, name the exact Data Fabric connection:]
+
+```
+Entity: Vendor
+This entity's data is sourced from the "[ConnectionName]" [System] connection.
+Attributes include:
+- Id: An Identifier that is the Primary Key from [System]
+- Name: Text, the vendor's registered name
+```
+
+### Static Entities
+
+```
+Entity Name: ApprovalStatus
+Purpose: Defines the possible states of a payment request throughout its lifecycle
+Records: Pending, Approved, Rejected, Escalated
+
+Entity Name: PaymentCategory
+Purpose: Categorizes payment requests for routing and reporting
+Records: Vendor Payment, Reimbursement, Payroll Adjustment, Other
+```
+
+## Roles and Permissions
+
+[One block per role. Access levels are exactly View / Edit / No Access. Name the exact attribute or relationship that scopes any row-level rule.]
+
+```
+Role: Finance Team Member
+- PaymentRequest: Edit Access (own records only, based on the RequesterId attribute)
+- ApprovalDecision: View Access
+
+Role: Approver
+- PaymentRequest: View Access
+- ApprovalDecision: Edit Access (only for requests routed to their approval tier)
+
+Role: Admin
+- PaymentRequest: Edit Access (all records)
+- ApprovalDecision: Edit Access (all records)
+- Special Permission: Can configure approval routing rules
+```
+
+## Main Features and Screens
+
+[List each screen with its UI pattern from the recognized keyword list (table, card list, gallery, master detail, list with popup, card list w/ accordion or sidebar, list with map, dashboard) and the attributes it shows. Respect the pattern constraints in Mentor-Requirement-Doc-Standards.md §6.]
+
+- List screen of payment requests displayed as a table, with columns: OrderNumber-equivalent, Vendor, Amount, Status.
+- Master detail for a selected payment request: list on the left (Vendor, Amount), detail panel showing full attributes and its approval decisions.
+- List screen of approval decisions displayed as a card list.
+- Dashboard should consist of:
+  - Total Pending Requests as a counter
+  - Total Approved This Month as a counter
+  - Requests by Status as a Donut Chart
+  - Approved Amount by Month as a Vertical Bar Chart
+  - Do not add anything else besides these charts that are mentioned. Make sure there are no lists displayed on the dashboard.
+
+## External Integrations
+
+[Optional. Name each external system, direction of data flow, and confirm the Data Fabric connection prerequisite.]
+
+- [System name] ([inbound/outbound/bidirectional]): [what data, why]. **Prerequisite:** the "[ConnectionName]" Data Fabric connection must exist in ODC before generation.
+~~~
+
+#### File 2 — Context Companion Template (not uploaded to Mentor)
+
+```markdown
+# [App Name] — Context & Business Case
+
+> **Companion to:** `BRD-[AppName]-[Date].md` (the Mentor-upload file)
+> **Not for Mentor upload** — this file is for stakeholder review and sign-off only.
+
 ## Executive Summary
-
-[2 paragraphs. Answer: What problem does this app solve? For whom? Why Mentor + ODC?]
-
-Example tone:
-> "The PaymentProcessor app automates payment authorization workflows for high-volume transaction processing. Finance teams currently spend 40% of their time on manual payment reviews and exception handling. This app will reduce that to <10% through intelligent routing, automated compliance checks, and exception escalation to human reviewers when needed.
->
-> Built with Mentor App Generator on ODC, this app leverages OutSystems' process automation and integration capabilities to handle payment flows with audit trail compliance and real-time reporting."
-
----
-
-## App Scope & Boundaries
-
-### What This App Does
-[1–2 sentences: core responsibilities, main workflows]
-
-Example:
-> "The PaymentProcessor app receives payment requests, validates them against compliance rules, routes them to appropriate approvers, tracks approval chains, and records all decisions in an audit log."
-
-### What This App Does NOT Do
-[1–2 sentences: explicit out-of-scope areas, especially if they might seem in-scope]
-
-Example:
-> "This app does not handle payment settlement, bank file generation, or customer refunds. Those are handled by separate backend systems. It also does not include user-facing dashboards; that's in the ReportingHub app (see dependencies)."
-
-### If Part of Multi-App System
-[Add this paragraph]
-
-> "This app is part of the [Project Name] system. See `00-BRD-Architecture-[ProjectName].md` for the full architecture, app breakdown, and integration map. Key dependencies: receives payment requests from [other app], sends approved payments to [backend system]."
-
----
-
-## Functional Requirements
-
-### Core Workflows
-
-[For each major workflow, describe the actors, steps, decision points, and outcomes. Format as a numbered list or table.]
-
-Example:
-
-**1. Payment Authorization Workflow**
-- Actor: Finance team member
-- Trigger: Payment request arrives from [source]
-- Steps:
-  1. App receives request and validates against business rules (amount limits, vendor whitelist, etc.)
-  2. If validation passes, route to appropriate approver based on amount/vendor/category
-  3. Approver reviews in dashboard, approves or rejects with reason
-  4. App records decision and sends notification to requester
-  5. Approved payments are queued for settlement; rejected payments return to requester
-- SLA: First approver sees request within 2 hours; approval decision within 4 business hours
-
-**2. Exception Handling**
-- Trigger: Payment fails validation
-- Steps:
-  1. App flags as exception and routes to exception handler role
-  2. Handler investigates, approves override or requests more info from requester
-  3. Outcome: either approved despite exception, or rejected with feedback
-- SLA: Exception resolution within 1 business day
-
-### User Stories / Feature List
-
-[Optional: if the app is small, you may use user story format instead of workflows. If large, use both.]
-
-Example:
-- "As a finance team member, I can submit a payment request and receive confirmation within 1 minute"
-- "As an approver, I can review pending payments in a priority-sorted dashboard"
-- "As an admin, I can configure approval rules (amount limits, escalation chains) without code"
-
----
+[2 paragraphs: business problem, impact, why Mentor + ODC.]
 
 ## Non-Functional Requirements
-
-### Performance & Scale
-- Expected user load: [e.g., 50 concurrent users, 1000 requests/day]
-- Response time SLA: [e.g., form submission <2 sec, dashboard load <5 sec]
-- Data volume: [e.g., 100K payments/month, 2 years retention]
-
-### Security & Compliance
-- Authentication: [e.g., SSO via company directory]
-- Data classification: [e.g., PII, financial data — requires encryption at rest/in transit]
-- Compliance requirements: [e.g., SOX, GDPR, PCI — cite specific controls]
-- Audit trail: [e.g., all approval decisions and system changes logged with timestamp, user, and reason]
-
-### Reliability & Availability
-- Uptime SLA: [e.g., 99.5% during business hours]
-- Disaster recovery: [e.g., recover and resume from last successful checkpoint within 1 hour]
-- Error handling: [e.g., failed integrations trigger admin alert and retry after 5 min]
-
-### Integrations & System Dependencies
-- External systems: [list each system, what data flows in/out, frequency, protocol]
-- Example:
-  - Payment Gateway API (outbound, real-time): Send approved payments for processing
-  - Org Chart Service (inbound, batch nightly): Fetch current approver list
-  - Audit Logging Service (outbound, streaming): Send all decisions for compliance
-
----
-
-## Data & Information Architecture
-
-### Key Entities & Attributes
-
-[Create a simple table or list of main data objects and their key attributes. Mentor needs to understand what data it's managing.]
-
-Example:
-
-| Entity | Key Attributes | Source |
-|--------|---|---|
-| PaymentRequest | ID, amount, vendor, requester, category, timestamp | External system |
-| ApprovalRule | rule_id, min_amount, max_amount, approver_role, category | Admin configuration |
-| ApprovalDecision | decision_id, request_id, approver, decision (yes/no), reason, timestamp | App created |
-| AuditLog | log_id, event, actor, timestamp, details | App created |
-
-### Data Flow
-
-[Diagram or description of how data moves through the app]
-
-Example:
-> "Payment requests enter from the Payments API → App validates and routes → Approver reviews → Decision saved to AuditLog → Approved requests sent to Settlement Service → Notifications sent to requester."
-
----
+- Performance & scale: [expected load, response time SLA, data volume]
+- Security & compliance: [authentication, data classification, compliance regime, audit trail]
+- Reliability & availability: [uptime SLA, disaster recovery, error handling]
 
 ## Acceptance Criteria
-
-### Launch Readiness
-
-The app is ready for production if:
-- [ ] All functional workflows execute without errors in a production-like test scenario
-- [ ] 95% of payment requests are processed end-to-end within 4 business hours
-- [ ] All approval decisions are recorded in the audit log with no missing entries
-- [ ] Exception handling surfaces exceptions to exception handlers within 30 minutes
-- [ ] Admin can configure approval rules and see changes reflected in the app within 5 minutes
-- [ ] Performance tests confirm <2 sec response time for form submissions under 50 concurrent users
-
-### Success Metrics
-
-- 90% of payments approved without manual exception handling (vs. current 40% automated)
-- Average approval time reduced from 2 days to 4 hours
-- Audit trail completeness: 100% of decisions logged
-- User adoption: 100% of finance team trained and actively using within 2 weeks of launch
-
----
+- [ ] [Launch readiness checklist items]
 
 ## Dependencies & Risks
 
-### Internal Dependencies
-
-[If this is part of a multi-app system, list other apps this depends on.]
-
-Example:
-- Depends on ReportingHub for any dashboard views beyond the app's internal approval dashboard
-- Depends on BenefitsProcessor if payments involve benefit fund transfers
-
-### External Dependencies
-
-[Systems, data sources, or services outside this app that it relies on.]
-
-Example:
-- Payments API: Receives all payment requests. If unavailable, app has no input; no fallback.
-- Org Chart Service: Used nightly to refresh approver list. If stale for >24 hours, alert admin.
-- Email Service: Sends notifications. If unavailable, decisions are still recorded, but approvers don't receive alerts (acceptable; they can check the dashboard).
-
-### Technical Risks & Mitigations
-
 | Risk | Likelihood | Impact | Mitigation |
 |------|---|---|---|
-| Payments API changes format | Low | High (app breaks) | Maintain API contract in code; schedule API owner reviews |
-| Approval Rules data corrupted | Very Low | High (invalid decisions) | Daily backup + validation checks before loading |
-| Performance degrades under load | Medium | High (user frustration) | Load test before launch; add caching if needed |
-
-### Assumptions
-
-- Org Chart Service is authoritative for approver roles (no local role overrides)
-- All payment requests can be categorized into pre-defined categories (no free-form categories)
-- Approvers are available during business hours (no 24/7 approval SLA)
-
----
+| [Risk] | [Low/Med/High] | [Low/Med/High] | [Mitigation] |
 
 ## Success Metrics & KPIs
-
-### Business Metrics
-- Payment processing time: reduce from [baseline] to [target] by [date]
-- Manual handling effort: reduce from [baseline] % to [target] % of requests
-- Compliance: 100% audit trail completeness
-
-### Technical Metrics
-- Uptime: maintain [SLA] availability
-- Response time: 95th percentile <[target] seconds
-- Error rate: <[target] % of transactions
-
-### Adoption Metrics
-- User training completion: [target] %
-- Daily active users: [target] within [timeframe]
-
----
+- [Business metric]: reduce from [baseline] to [target] by [date]
+- [Technical metric]: [target]
+- [Adoption metric]: [target]
 
 ## Next Steps After Mentor Generation
-
-1. [User receives the generated app code from Mentor]
-2. Test the generated app against acceptance criteria
-3. Deploy to staging environment for UAT with finance team
+1. Review the generated blueprint against this context doc before approving generation
+2. Test the generated app against the acceptance criteria above
+3. Deploy to staging for UAT
 4. Gather feedback and iterate
-5. Plan production rollout and user training
-
+5. Plan production rollout and training
 ```
 
 ### AI Agent App BRD Template (NEW)
 
 If an AI Agent app is needed, use this template:
 
-```markdown
+~~~markdown
 # Business Requirements Document: [Project Name] AI Agent
 
 > **For:** Mentor App Generator (OutSystems Developer Cloud)  
@@ -529,7 +521,7 @@ Called by:
 | AI model latency spike | Set timeout; escalate if exceeds 2s |
 | Hallucination or incorrect response | Use confidence threshold; require human review for low-confidence responses |
 | Tool call rate limits hit | Implement queue + caching of frequent queries |
-```
+~~~
 
 ---
 
@@ -537,7 +529,7 @@ Called by:
 
 For the parent document (`00-BRD-Architecture-[ProjectName]-[Date].md`):
 
-```markdown
+~~~markdown
 # System Architecture & BRD Overview: [Project Name]
 
 > **For:** Multi-App System on OutSystems ODC (Mentor App Generator)
@@ -692,8 +684,10 @@ See the following documents for detailed requirements per app:
 - `02-BRD-ApprovalEngine-[Date].md`
 - `03-BRD-ReportingHub-[Date].md`
 
-Each BRD is self-contained and ready for Mentor App Generator upload.
-```
+Each is a Mentor-upload file following the native structure in Part 4 (App Overview, General App Settings, Data Model, Static Entities, Roles & Permissions, Main Features & Screens, External Integrations) — ready for direct upload to Mentor App Generator.
+~~~
+
+**Note on multi-app + tables:** This architecture document is the one place tables are appropriate — it's a human/stakeholder planning artifact, never uploaded to Mentor. Cross-app dependencies, the risk register, and system-level KPIs belong here, not duplicated into each per-app BRD. Each individual app's Mentor-upload BRD should stay lean and native-structure-only (per app, generate its own `[AppName]-Context-[Date].md` only if that specific app needs stakeholder-facing detail beyond what this architecture doc already covers).
 
 ---
 
@@ -787,6 +781,18 @@ Before saving BRD files, verify:
 - [ ] All external system integrations are named and described
 - [ ] Success metrics are measurable and tied to business outcomes
 
+**Mentor-native document standards (NEW — check the Mentor-upload file specifically, not the context companion):**
+- [ ] File is `.md` and well under the 5 MB limit
+- [ ] Every entity attribute uses one of the 9 canonical data types (§3 of Mentor-Requirement-Doc-Standards.md) — no invented types
+- [ ] Entity, static entity, and role blocks follow the exact list-based syntax — no markdown tables in the Mentor-upload file
+- [ ] Every screen names a recognized UI pattern keyword and respects its attribute-count constraint
+- [ ] Dashboard specs use the real chart-type and aggregation vocabulary, with an explicit exclusion line if scope needs pinning down
+- [ ] Every external entity names its exact Data Fabric connection, and the user has been told that connection must exist in ODC before generation
+- [ ] No PII, no implementation code, no screenshots/images, no ambiguous language ("user-friendly", "intuitive") anywhere in the Mentor-upload file
+- [ ] Stakeholder-facing content (exec summary, NFR prose, risk register, KPIs, acceptance criteria) lives only in the `-Context-` companion file, not in the Mentor-upload file
+- [ ] This run re-queried the MCP for requirement-document structure (Part 2) rather than relying solely on the cached `Mentor-Requirement-Doc-Standards.md`, and any drift was flagged to the user
+- [ ] The Mentor-upload file was re-opened side-by-side with a matching sample in `./resources/` and its section formatting, entity syntax, and role/screen phrasing actually match the sample's pattern — not just the abstracted rules
+
 **If AI is included (NEW):**
 - [ ] AI Agent app (if separate) is documented in architecture diagram
 - [ ] Tool calling is explicitly listed (what systems can AI access)
@@ -802,16 +808,18 @@ Before saving BRD files, verify:
 
 ### Single-App Case
 
-Save file: `BRD-[AppName]-[YYYY-MM-DD].md`
+Save two files:
+- `BRD-[AppName]-[YYYY-MM-DD].md` — the Mentor-upload file (native structure, ready to upload as-is)
+- `BRD-[AppName]-Context-[YYYY-MM-DD].md` — the stakeholder companion (not for Mentor upload)
 
 Present to user:
-> "I've created a BRD for your [AppName] app, grounded in Mentor best practices for ODC. It covers:
-> - Problem & vision
-> - Workflows and user journeys
-> - Integration points
-> - Success metrics and acceptance criteria
+> "I've created your [AppName] requirement document, grounded in Mentor's actual document standards for ODC:
+> - `BRD-[AppName]-[Date].md` — upload this one directly to Mentor App Generator
+> - `BRD-[AppName]-Context-[Date].md` — background for stakeholder sign-off (exec summary, NFRs, risks, KPIs); Mentor never sees this one
 >
-> Next: You can upload this directly to Mentor App Generator to generate the app scaffold. I recommend sharing it with your stakeholders first for sign-off."
+> When you upload the first file, Mentor will show you a **blueprint** (entities, roles, screens, stateflows) before generating anything — that's the cheap point to catch a misread requirement, so review it carefully before approving. After generation, refine with small, single-change prompts rather than broad re-descriptions.
+>
+> Recommended next: share the context doc with stakeholders for sign-off, then upload the main file to Mentor App Generator."
 
 ### Multi-App Case
 
@@ -917,3 +925,5 @@ Present to user:
 4. **Missing dependencies** — Multi-app systems fail when cross-app dependencies aren't clear. Document them explicitly.
 5. **Generic success metrics** — "Users are happy" is not a metric. Use measurable KPIs tied to the original problem.
 6. **Forgetting the architecture doc** — Multi-app systems need a parent doc that shows the whole picture.
+7. **Bloating the Mentor-upload file** — Executive summaries, risk registers, KPI tables, and acceptance-criteria checklists don't belong in the file that gets uploaded to Mentor. Put them in the `-Context-` companion file instead; keep the upload file to native sections only, written as lists.
+8. **Relying only on the cached standards file** — `Mentor-Requirement-Doc-Standards.md` can drift from what Mentor actually supports. Always re-run the structure/capability queries in Part 2 before drafting.

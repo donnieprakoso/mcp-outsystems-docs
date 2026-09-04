@@ -23,4 +23,6 @@ demo/
 
 # Temporary files and caches
 temp/
-_LOCAL_/**/*
+
+# Local-only scratch content, anywhere in the tree (unanchored — matches at any depth)
+_LOCAL_/

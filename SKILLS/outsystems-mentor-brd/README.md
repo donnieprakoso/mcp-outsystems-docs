@@ -8,8 +8,8 @@ This skill generates Business Requirements Documents (BRDs) for building with Ou
 
 - **Interactive interview** — asks clarifying questions instead of assuming requirements
 - **Multi-app aware** — automatically detects if your requirements need multiple coordinated apps
-- **Mentor-grounded** — researches actual Mentor capabilities via OutSystems Docs MCP, not generic templates
-- **Ready to upload** — output is formatted to go directly into Mentor App Generator
+- **Mentor-grounded, live** — researches actual Mentor capabilities and document standards via OutSystems Docs MCP *every session*, not just a cached template. `Mentor-Requirement-Doc-Standards.md` caches a snapshot for speed, but the skill re-verifies it against the MCP each run since Mentor Web ships new capabilities frequently
+- **Ready to upload** — the Mentor-facing file follows Mentor's own native document structure (canonical data types, list-based entity/role/screen syntax, no tables) so it uploads cleanly into Mentor App Generator
 
 ### Single vs. Multi-App
 
@@ -41,22 +41,23 @@ The skill will:
 ### Single App
 
 ```
-BRD-[AppName]-[YYYY-MM-DD].md
+BRD-[AppName]-[YYYY-MM-DD].md          ← Upload this to Mentor App Generator
+BRD-[AppName]-Context-[YYYY-MM-DD].md  ← Stakeholder background, not for Mentor
 ```
 
-One complete BRD covering scope, workflows, integrations, acceptance criteria, and success metrics.
+The first file follows Mentor's own native document structure — App Overview, General App Settings, Data Model, Static Entities, Roles & Permissions, Main Features & Screens, External Integrations — written as lists, not tables, so Mentor parses it reliably. The second file carries the executive summary, non-functional requirements, risks, and KPIs that stakeholders need but Mentor doesn't.
 
 ### Multiple Apps
 
 ```
-00-BRD-Architecture-[ProjectName]-[YYYY-MM-DD].md  ← Start here
-01-BRD-[AppName1]-[YYYY-MM-DD].md
-02-BRD-[AppName2]-[YYYY-MM-DD].md
+00-BRD-Architecture-[ProjectName]-[YYYY-MM-DD].md  ← Start here (planning doc, not for Mentor)
+01-BRD-[AppName1]-[YYYY-MM-DD].md                  ← Upload to Mentor
+02-BRD-[AppName2]-[YYYY-MM-DD].md                  ← Upload to Mentor
 ...
 ```
 
-- **Architecture doc** shows app boundaries, dependencies, integration map, and build sequencing
-- **Individual BRDs** are self-contained and ready for Mentor upload
+- **Architecture doc** shows app boundaries, dependencies, integration map, risk register, and build sequencing — a human-facing planning artifact, never uploaded to Mentor
+- **Individual BRDs** are Mentor-native and self-contained, ready for direct upload
 
 ---
 
@@ -72,6 +73,7 @@ Asks about:
 
 ### Research Phase
 Searches Mentor docs for:
+- Mentor's current requirement-document structure, canonical data types, UI pattern vocabulary, and dashboard capabilities — run live every session, since Mentor Web ships new capabilities frequently and the cached reference (`Mentor-Requirement-Doc-Standards.md`) can drift from what's actually live
 - Mentor capabilities and limitations
 - Multi-app architecture patterns in ODC
 - Integration best practices
@@ -84,13 +86,9 @@ Determines:
 - Dependencies and sequencing
 
 ### Generation Phase
-Creates BRDs with:
-- Executive summary grounded in Mentor capabilities
-- Detailed workflows and user stories
-- Non-functional requirements (performance, security, compliance)
-- Integration architecture
-- Acceptance criteria & success metrics
-- Documented dependencies and risks
+Creates, per app, a Mentor-upload file plus a stakeholder context file:
+- **Mentor-upload file:** App Overview, General App Settings, Data Model (canonical types, exact entity syntax), Static Entities, Roles & Permissions (View/Edit/No Access + row-level scoping), Main Features & Screens (recognized UI patterns, dashboard vocabulary), External Integrations (with Data Fabric prerequisites flagged)
+- **Context file:** Executive summary, non-functional requirements, acceptance criteria, dependencies & risks, success metrics — for stakeholder sign-off, never uploaded to Mentor
 
 ---
 
@@ -123,4 +121,4 @@ Creates BRDs with:
 
 ## Questions?
 
-Refer to `SKILL.md` for the workflow overview and `system-prompt.md` for detailed instructions and templates.
+Refer to `SKILL.md` for the workflow overview, `system-prompt.md` for detailed instructions and templates, and `Mentor-Requirement-Doc-Standards.md` for the canonical Mentor document vocabulary (data types, UI patterns, dashboard elements, include/avoid rules) — kept current via live MCP research, not just this cached file. `resources/` holds OutSystems' own official sample requirement documents for reference.
